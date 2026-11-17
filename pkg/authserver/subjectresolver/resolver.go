@@ -51,8 +51,12 @@ var _ subject.Resolver = (*Resolver)(nil)
 // claims. That is how a cross-issuer mapping is configured: an Okta custom
 // authorization server's token carries the sign-in subject in uid, so its
 // issuer maps to the sign-in provider with SubjectClaim "uid".
-// It returns an error if the store is nil, no providers are given, or an
-// entry has an empty issuer, name or subject claim.
+// It returns an error if the store is nil, no providers are given, an entry has
+// an empty issuer, name or subject claim, or subject.ValidateBindingClaim
+// refuses an entry's claim (the error wraps subject.ErrInvalidBindingClaim).
+// The warning ValidateBindingClaim can return, for sub on an Okta custom
+// authorization server, is ignored here; callers who want it call
+// ValidateBindingClaim themselves.
 func New(providers map[string]Provider, store IdentityStore) (*Resolver, error) {
 	if store == nil {
 		return nil, errors.New("subjectresolver: store is required")
@@ -64,6 +68,9 @@ func New(providers map[string]Provider, store IdentityStore) (*Resolver, error) 
 	for issuer, p := range providers {
 		if issuer == "" || p.Name == "" || p.SubjectClaim == "" {
 			return nil, errors.New("subjectresolver: provider entries need an issuer, a name and a subject claim")
+		}
+		if _, err := subject.ValidateBindingClaim(issuer, p.SubjectClaim); err != nil {
+			return nil, fmt.Errorf("subjectresolver: provider %q: %w", p.Name, err)
 		}
 		copied[issuer] = p
 	}
