@@ -60,6 +60,33 @@ linters:
               desc: go-jose v3 has no JSON nesting limit (GHSA-vvm8-gf78-28g4); use go-jose v4, or guard with fositejose.IsUnsafeJWS
             - pkg: github.com/ory/fosite/token/jwt
               desc: fosite's JWT parser uses go-jose v3 (GHSA-vvm8-gf78-28g4); guard with fositejose.IsUnsafeJWS before parsing
+        # The delegated-access subject and actor packages are imported by the
+        # token exchange, the vMCP and embedders, so they must not depend back
+        # on the authorization server or pkg/auth, and the two leaves must not
+        # import each other (pkg/auth$ only matches the root package). Each
+        # leaf has its own rule so it can also deny its sibling.
+        restrict_subject_leaf:
+          list-mode: lax
+          files:
+            - '**/pkg/auth/subject/**'
+          deny:
+            - pkg: github.com/stacklok/toolhive/pkg/auth$
+              desc: pkg/auth/subject is a leaf package; move the shared code into it or pass it in as an interface
+            - pkg: github.com/stacklok/toolhive/pkg/authserver
+              desc: pkg/auth/subject is a leaf package; the authorization server depends on it, not the reverse
+            - pkg: github.com/stacklok/toolhive/pkg/auth/actor
+              desc: pkg/auth/subject and pkg/auth/actor are sibling leaf packages and must not import each other
+        restrict_actor_leaf:
+          list-mode: lax
+          files:
+            - '**/pkg/auth/actor/**'
+          deny:
+            - pkg: github.com/stacklok/toolhive/pkg/auth$
+              desc: pkg/auth/actor is a leaf package; move the shared code into it or pass it in as an interface
+            - pkg: github.com/stacklok/toolhive/pkg/authserver
+              desc: pkg/auth/actor is a leaf package; the authorization server depends on it, not the reverse
+            - pkg: github.com/stacklok/toolhive/pkg/auth/subject
+              desc: pkg/auth/subject and pkg/auth/actor are sibling leaf packages and must not import each other
     forbidigo:
       # yaml.Unmarshal into a Go value checks mapping keys for duplicates
       # pairwise and formats an error for every duplicate pair, so a small
