@@ -64,6 +64,8 @@ type Decision struct {
 	Principal string
 }
 
+//go:generate mockgen -destination=mocks/mock_policy.go -package=mocks -source=actor.go Policy
+
 // Policy decides whether an actor may act for a user. On error the Decision
 // does not allow and the caller refuses the request.
 type Policy interface {
